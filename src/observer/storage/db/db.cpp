@@ -191,8 +191,16 @@ RC Db::drop_table(const char *table_name)
     }
     
     Table *table = iter->second;
+    const TableMeta &table_meta = table->table_meta();
     
-    // 2. 从内存映射中移除
+    for (int i = 0; i < table_meta.index_num(); i++) {
+        const IndexMeta *index_meta = table_meta.index(i);
+        string index_file = path_ + "/" + index_meta->name() + ".index";
+        if (filesystem::exists(index_file)) {
+            filesystem::remove(index_file);
+        }
+    }
+    
     opened_tables_.erase(iter);
     
     // 3. 生成文件路径
