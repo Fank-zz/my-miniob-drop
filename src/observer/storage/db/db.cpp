@@ -222,6 +222,8 @@ RC Db::drop_table(const char *table_name)
         filesystem::remove(lob_file);
     }
     
+    flush_meta();
+    
     LOG_INFO("table %s dropped successfully", table_name);
     return RC::SUCCESS;
 }
