@@ -11,7 +11,7 @@ See the Mulan PSL v2 for more details. */
 //
 // Created by Meiyi & Longda & Wangyunlai on 2021/5/12.
 //
-
+#include <filesystem>
 #include "storage/db/db.h"
 
 #include <fcntl.h>
@@ -174,6 +174,48 @@ RC Db::create_table(const char *table_name, span<const AttrInfoSqlNode> attribut
   opened_tables_[table_name] = table;
   LOG_INFO("Create table success. table name=%s, table_id:%d", table_name, table_id);
   return RC::SUCCESS;
+}
+
+RC Db::drop_table(const char *table_name)
+{
+    if (table_name == nullptr || strlen(table_name) == 0) {
+        LOG_WARN("invalid table name");
+        return RC::INVALID_ARGUMENT;
+    }
+    
+    // 1. 查找表是否存在
+    auto iter = opened_tables_.find(table_name);
+    if (iter == opened_tables_.end()) {
+        LOG_WARN("table %s does not exist", table_name);
+        return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+    
+    Table *table = iter->second;
+    
+    // 2. 从内存映射中移除
+    opened_tables_.erase(iter);
+    
+    // 3. 生成文件路径
+    string meta_file = path_ + "/" + table_name + ".table";
+    string data_file = path_ + "/" + table_name + ".data";
+    string lob_file = path_ + "/" + table_name + ".lob";
+    
+    // 4. 删除 Table 对象（释放内存）
+    delete table;
+    
+    // 5. 删除磁盘文件
+    if (filesystem::exists(meta_file)) {
+        filesystem::remove(meta_file);
+    }
+    if (filesystem::exists(data_file)) {
+        filesystem::remove(data_file);
+    }
+    if (filesystem::exists(lob_file)) {
+        filesystem::remove(lob_file);
+    }
+    
+    LOG_INFO("table %s dropped successfully", table_name);
+    return RC::SUCCESS;
 }
 
 Table *Db::find_table(const char *table_name) const
